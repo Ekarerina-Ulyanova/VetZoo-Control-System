@@ -1,27 +1,35 @@
 const API_URL = 'http://localhost:5000/api';
 
 async function checkAuth() {
-    const response = await fetch(`${API_URL}/me`, {
-        credentials: 'include'
-    });
-    if (response.ok) {
-        const user = await response.json();
-        document.getElementById('userDisplay').innerText = 
-            `${user.full_name || user.username} (${user.role})`;
-        loadAnimals();
-    } else {
+    try {
+        const response = await fetch(`${API_URL}/me`, {
+            credentials: 'include'
+        });
+        if (response.ok) {
+            const user = await response.json();
+            document.getElementById('userDisplay').innerText = 
+                `${user.full_name || user.username} (${user.role})`;
+            loadAnimals();
+        } else {
+            window.location.href = '/login';
+        }
+    } catch (error) {
+        console.error('Ошибка проверки авторизации:', error);
         window.location.href = '/login';
     }
 }
 
 async function loadAnimals() {
-    const response = await fetch(`${API_URL}/animals`, {
-        credentials: 'include'
-    });
-    if (!response.ok)
-        return;
-    const animals = await response.json();
-    displayAnimals(animals);
+    try {
+        const response = await fetch(`${API_URL}/animals`, {
+            credentials: 'include'
+        });
+        if (!response.ok) throw new Error('Ошибка загрузки');
+        const animals = await response.json();
+        displayAnimals(animals);
+    } catch (error) {
+        alert('Ошибка загрузки: ' + error);
+    }
 }
 
 function displayAnimals(animals) {
@@ -53,9 +61,16 @@ function displayAnimals(animals) {
 }
 
 async function viewAnimal(id) {
-    const response = await fetch(`${API_URL}/animals/${id}`, {
-        credentials: 'include'
-    });
-    const animal = await response.json();
+    try {
+        const response = await fetch(`${API_URL}/animals/${id}`, {
+            credentials: 'include'
+        });
+        const animal = await response.json();
+        
+        alert(`Просмотр животного: ${animal.name} (функция в разработке)`);
+    } catch (error) {
+        alert('Ошибка загрузки: ' + error);
+    }
+}
 
 document.addEventListener('DOMContentLoaded', checkAuth);
