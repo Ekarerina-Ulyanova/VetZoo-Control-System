@@ -67,9 +67,9 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        
+
         user_data = db.get_user_by_username(username)
-        
+
         if user_data and check_password_hash(user_data[2], password):
             user = User(
                 user_id=user_data[0],
@@ -82,7 +82,7 @@ def login():
         else:
             flash('Неверное имя пользователя или пароль')
             return render_template('login.html'), 401
-    
+
     return render_template('login.html')
 
 @app.route('/logout')
@@ -218,7 +218,7 @@ def get_animal(animal_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
 @app.route('/api/animals/<int:animal_id>/examinations', methods=['GET'])
 @login_required
 def get_examinations(animal_id):
@@ -309,6 +309,40 @@ def complete_vaccination(vacc_id):
         if success:
             return jsonify({'message': 'Прививка отмечена как проведенная'})
         return jsonify({'error': 'Прививка не найдена'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/animals/<int:animal_id>/diets', methods=['GET'])
+@login_required
+def get_diets(animal_id):
+    try:
+        diets = db.get_animal_diets(animal_id)
+        result = []
+        for d in diets:
+            result.append({
+                'id': d[0], 'animal_id': d[1], 'diet_name': d[2], 'food_type': d[3],
+                'quantity': d[4], 'schedule': d[5], 'start_date': d[6], 'end_date': d[7]
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/diets', methods=['POST'])
+@login_required
+@role_required('vet')
+def add_diet():
+    try:
+        data = request.json
+        diet_id = db.add_diet(
+            data['animal_id'],
+            data['diet_name'],
+            data['food_type'],
+            data['quantity'],
+            data.get('schedule'),
+            data.get('start_date', datetime.now().strftime('%Y-%m-%d')),
+            data.get('end_date')
+        )
+        return jsonify({'id': diet_id, 'message': 'Рацион добавлен'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
