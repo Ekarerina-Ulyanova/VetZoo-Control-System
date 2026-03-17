@@ -36,6 +36,71 @@ class Database:
         ''')
         self.conn.commit()
 
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS examinations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                animal_id INTEGER NOT NULL,
+                examination_date TEXT NOT NULL,
+                veterinarian TEXT NOT NULL,
+                diagnosis TEXT,
+                treatment TEXT,
+                notes TEXT,
+                is_scheduled INTEGER DEFAULT 0,
+                FOREIGN KEY (animal_id) REFERENCES animals (id) ON DELETE CASCADE
+            )
+        ''')
+        self.conn.commit()
+
+        
+        # Таблица прививок
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS vaccinations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                animal_id INTEGER NOT NULL,
+                vaccination_date TEXT NOT NULL,
+                vaccine_name TEXT NOT NULL,
+                veterinarian TEXT NOT NULL,
+                next_due_date TEXT,
+                is_scheduled INTEGER DEFAULT 0,
+                FOREIGN KEY (animal_id) REFERENCES animals (id) ON DELETE CASCADE
+            )
+        ''')
+        self.conn.commit()
+    
+    def add_examination(self, animal_id, examination_date, veterinarian, diagnosis, treatment, notes=None, is_scheduled=0):
+        self.cursor.execute('''
+            INSERT INTO examinations (animal_id, examination_date, veterinarian, diagnosis, treatment, notes, is_scheduled)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (animal_id, examination_date, veterinarian, diagnosis, treatment, notes, is_scheduled))
+        self.conn.commit()
+        return self.cursor.lastrowid
+    
+    def get_animal_examinations(self, animal_id):
+        self.cursor.execute('SELECT * FROM examinations WHERE animal_id = ? ORDER BY examination_date DESC', (animal_id,))
+        return self.cursor.fetchall()
+    
+    def add_vaccination(self, animal_id, vaccination_date, vaccine_name, veterinarian, next_due_date=None, is_scheduled=0):
+        self.cursor.execute('''
+            INSERT INTO vaccinations (animal_id, vaccination_date, vaccine_name, veterinarian, next_due_date, is_scheduled)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (animal_id, vaccination_date, vaccine_name, veterinarian, next_due_date, is_scheduled))
+        self.conn.commit()
+        return self.cursor.lastrowid
+    
+    def get_animal_vaccinations(self, animal_id):
+        self.cursor.execute('SELECT * FROM vaccinations WHERE animal_id = ? ORDER BY vaccination_date DESC', (animal_id,))
+        return self.cursor.fetchall()
+    
+    def complete_examination(self, exam_id):
+        self.cursor.execute('UPDATE examinations SET is_scheduled = 0 WHERE id = ?', (exam_id,))
+        self.conn.commit()
+        return self.cursor.rowcount > 0
+    
+    def complete_vaccination(self, vacc_id):
+        self.cursor.execute('UPDATE vaccinations SET is_scheduled = 0 WHERE id = ?', (vacc_id,))
+        self.conn.commit()
+        return self.cursor.rowcount > 0
+
     def add_animal(self, name, species, arrival_date, birth_date=None, gender=None, enclosure=None, notes=None):
         self.cursor.execute('''
             INSERT INTO animals (name, species, arrival_date, birth_date, gender, enclosure, notes)
