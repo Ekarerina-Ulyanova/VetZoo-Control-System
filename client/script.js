@@ -1,4 +1,5 @@
 const API_URL = 'http://localhost:5000/api';
+let currentAnimalId = null;
 
 async function checkAuth() {
     try {
@@ -74,3 +75,79 @@ async function viewAnimal(id) {
 }
 
 document.addEventListener('DOMContentLoaded', checkAuth);
+
+async function viewAnimal(id) {
+    currentAnimalId = id;
+    try {
+        const response = await fetch(`${API_URL}/animals/${id}`, {
+            credentials: 'include'
+        });
+        const animal = await response.json();
+        
+        document.getElementById('viewAnimalTitle').textContent = `${animal.name} (${animal.species})`;
+        document.getElementById('animalInfo').innerHTML = `
+            <p><strong>ID:</strong> ${animal.id}</p>
+            <p><strong>Дата прибытия:</strong> ${animal.arrival_date}</p>
+            <p><strong>Дата рождения:</strong> ${animal.birth_date || 'не указана'}</p>
+            <p><strong>Пол:</strong> ${animal.gender || 'не указан'}</p>
+            <p><strong>Вольер:</strong> ${animal.enclosure || 'не указан'}</p>
+            <p><strong>Примечания:</strong> ${animal.notes || 'нет'}</p>
+        `;
+        
+        await loadExaminations(id);
+        await loadVaccinations(id);
+        
+        // Показать модальное окно
+        // ... код открытия модалки
+    } catch (error) {
+        alert('Ошибка загрузки: ' + error);
+    }
+}
+
+async function loadExaminations(animalId) {
+    const response = await fetch(`${API_URL}/animals/${animalId}/examinations`, {
+        credentials: 'include'
+    });
+    const exams = await response.json();
+    
+    const container = document.getElementById('examsList');
+    if (!container) return;
+    
+    if (exams.length === 0) {
+        container.innerHTML = '<p class="text-muted">Осмотров нет</p>';
+        return;
+    }
+    
+    container.innerHTML = exams.map(exam => `
+        <div class="timeline-item">
+            <div class="timeline-date">${exam.examination_date}</div>
+            <div><strong>Ветеринар:</strong> ${exam.veterinarian}</div>
+            <div><strong>Диагноз:</strong> ${exam.diagnosis}</div>
+            <div><strong>Лечение:</strong> ${exam.treatment}</div>
+        </div>
+    `).join('');
+}
+
+async function loadVaccinations(animalId) {
+    const response = await fetch(`${API_URL}/animals/${animalId}/vaccinations`, {
+        credentials: 'include'
+    });
+    const vaccines = await response.json();
+    
+    const container = document.getElementById('vaccinesList');
+    if (!container) return;
+    
+    if (vaccines.length === 0) {
+        container.innerHTML = '<p class="text-muted">Прививок нет</p>';
+        return;
+    }
+    
+    container.innerHTML = vaccines.map(v => `
+        <div class="timeline-item">
+            <div class="timeline-date">${v.vaccination_date}</div>
+            <div><strong>Вакцина:</strong> ${v.vaccine_name}</div>
+            <div><strong>Ветеринар:</strong> ${v.veterinarian}</div>
+            ${v.next_due_date ? `<div><strong>Следующая:</strong> ${v.next_due_date}</div>` : ''}
+        </div>
+    `).join('');
+}
