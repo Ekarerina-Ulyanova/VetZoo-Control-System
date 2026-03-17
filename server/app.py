@@ -346,6 +346,80 @@ def add_diet():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/reports/health-status', methods=['GET'])
+@login_required
+@role_required('admin', 'vet')
+def get_health_status_report():
+    try:
+        animals = db.get_all_animals()
+
+        status_counts = {}
+        species_stats = {}
+
+        for animal in animals:
+            status = animal[7]
+            species = animal[2]
+
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+            if species not in species_stats:
+                species_stats[species] = {'total': 0, 'statuses': {}}
+            species_stats[species]['total'] += 1
+            species_stats[species]['statuses'][status] = species_stats[species]['statuses'].get(status, 0) + 1
+
+        return jsonify({
+            'total_animals': len(animals),
+            'status_counts': status_counts,
+            'species_stats': species_stats
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/vaccinations', methods=['GET'])
+@login_required
+@role_required('admin', 'vet')
+def get_vaccination_report():
+    try:
+        animals = db.get_all_animals()
+        today = datetime.now().date()
+
+        report = {
+            'total_vaccinations': 0,
+            'vaccines_by_type': {},
+            'animals_without_vaccinations': [],
+            'vaccination_coverage': 0
+        }
+
+        animals_with_vaccines = 0
+
+        for animal in animals:
+            animal_id = animal[0]
+            animal_name = animal[1]
+            animal_species = animal[2]
+
+            vaccines = db.get_animal_vaccinations(animal_id)
+
+            if vaccines:
+                animals_with_vaccines += 1
+                report['total_vaccinations'] += len(vaccines)
+
+                for vaccine in vaccines:
+                    vaccine_name = vaccine[3]
+                    report['vaccines_by_type'][vaccine_name] = report['vaccines_by_type'].get(vaccine_name, 0) + 1
+            else:
+                report['animals_without_vaccinations'].append({
+                    'id': animal_id,
+                    'name': animal_name,
+                    'species': animal_species
+                })
+
+        if animals:
+            report['vaccination_coverage'] = round((animals_with_vaccines / len(animals)) * 100, 2)
+
+        return jsonify(report)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     print("🚀 VetZoo Control Server запускается...")
     app.run(host='0.0.0.0', port=5000, debug=True)
