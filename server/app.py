@@ -174,7 +174,37 @@ def get_animals():
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+@app.route('/api/animals', methods=['POST'])
+@login_required
+@role_required('vet')
+def add_animal():
+    try:
+        data = request.json
+        animal_id = db.add_animal(
+            data['name'],
+            data['species'],
+            data.get('arrival_date', datetime.now().strftime('%Y-%m-%d')),
+            data.get('birth_date'),
+            data.get('gender'),
+            data.get('enclosure'),
+            data.get('notes')
+        )
+        return jsonify({'id': animal_id, 'message': 'Животное добавлено'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
+@app.route('/api/animals/<int:animal_id>/status', methods=['PUT'])
+@login_required
+@role_required('vet')
+def update_animal_status(animal_id):
+    try:
+        data = request.json
+        if not db.get_animal(animal_id):
+            return jsonify({'error': 'Животное не найдено'}), 404
+        db.update_animal_status(animal_id, data['status'])
+        return jsonify({'message': 'Статус обновлён'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 @app.route('/api/animals/<int:animal_id>', methods=['GET'])
 def get_animal(animal_id):
     try:
