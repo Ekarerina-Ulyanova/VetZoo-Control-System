@@ -67,9 +67,9 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        
+
         user_data = db.get_user_by_username(username)
-        
+
         if user_data and check_password_hash(user_data[2], password):
             user = User(
                 user_id=user_data[0],
@@ -82,7 +82,7 @@ def login():
         else:
             flash('Неверное имя пользователя или пароль')
             return render_template('login.html'), 401
-    
+
     return render_template('login.html')
 
 @app.route('/logout')
@@ -218,7 +218,7 @@ def get_animal(animal_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
 @app.route('/api/animals/<int:animal_id>/examinations', methods=['GET'])
 @login_required
 def get_examinations(animal_id):
@@ -309,6 +309,114 @@ def complete_vaccination(vacc_id):
         if success:
             return jsonify({'message': 'Прививка отмечена как проведенная'})
         return jsonify({'error': 'Прививка не найдена'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/animals/<int:animal_id>/diets', methods=['GET'])
+@login_required
+def get_diets(animal_id):
+    try:
+        diets = db.get_animal_diets(animal_id)
+        result = []
+        for d in diets:
+            result.append({
+                'id': d[0], 'animal_id': d[1], 'diet_name': d[2], 'food_type': d[3],
+                'quantity': d[4], 'schedule': d[5], 'start_date': d[6], 'end_date': d[7]
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/diets', methods=['POST'])
+@login_required
+@role_required('vet')
+def add_diet():
+    try:
+        data = request.json
+        diet_id = db.add_diet(
+            data['animal_id'],
+            data['diet_name'],
+            data['food_type'],
+            data['quantity'],
+            data.get('schedule'),
+            data.get('start_date', datetime.now().strftime('%Y-%m-%d')),
+            data.get('end_date')
+        )
+        return jsonify({'id': diet_id, 'message': 'Рацион добавлен'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/health-status', methods=['GET'])
+@login_required
+@role_required('admin', 'vet')
+def get_health_status_report():
+    try:
+        animals = db.get_all_animals()
+
+        status_counts = {}
+        species_stats = {}
+
+        for animal in animals:
+            status = animal[7]
+            species = animal[2]
+
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+            if species not in species_stats:
+                species_stats[species] = {'total': 0, 'statuses': {}}
+            species_stats[species]['total'] += 1
+            species_stats[species]['statuses'][status] = species_stats[species]['statuses'].get(status, 0) + 1
+
+        return jsonify({
+            'total_animals': len(animals),
+            'status_counts': status_counts,
+            'species_stats': species_stats
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reports/vaccinations', methods=['GET'])
+@login_required
+@role_required('admin', 'vet')
+def get_vaccination_report():
+    try:
+        animals = db.get_all_animals()
+        today = datetime.now().date()
+
+        report = {
+            'total_vaccinations': 0,
+            'vaccines_by_type': {},
+            'animals_without_vaccinations': [],
+            'vaccination_coverage': 0
+        }
+
+        animals_with_vaccines = 0
+
+        for animal in animals:
+            animal_id = animal[0]
+            animal_name = animal[1]
+            animal_species = animal[2]
+
+            vaccines = db.get_animal_vaccinations(animal_id)
+
+            if vaccines:
+                animals_with_vaccines += 1
+                report['total_vaccinations'] += len(vaccines)
+
+                for vaccine in vaccines:
+                    vaccine_name = vaccine[3]
+                    report['vaccines_by_type'][vaccine_name] = report['vaccines_by_type'].get(vaccine_name, 0) + 1
+            else:
+                report['animals_without_vaccinations'].append({
+                    'id': animal_id,
+                    'name': animal_name,
+                    'species': animal_species
+                })
+
+        if animals:
+            report['vaccination_coverage'] = round((animals_with_vaccines / len(animals)) * 100, 2)
+
+        return jsonify(report)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
