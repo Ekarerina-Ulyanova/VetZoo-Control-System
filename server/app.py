@@ -218,6 +218,99 @@ def get_animal(animal_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/api/animals/<int:animal_id>/examinations', methods=['GET'])
+@login_required
+def get_examinations(animal_id):
+    try:
+        exams = db.get_animal_examinations(animal_id)
+        result = []
+        for e in exams:
+            result.append({
+                'id': e[0], 'animal_id': e[1], 'examination_date': e[2],
+                'veterinarian': e[3], 'diagnosis': e[4], 'treatment': e[5],
+                'notes': e[6], 'is_scheduled': e[7] if len(e) > 7 else 0
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/examinations', methods=['POST'])
+@login_required
+@role_required('vet')
+def add_examination():
+    try:
+        data = request.json
+        exam_id = db.add_examination(
+            data['animal_id'],
+            data.get('examination_date', datetime.now().strftime('%Y-%m-%d %H:%M')),
+            data['veterinarian'],
+            data['diagnosis'],
+            data['treatment'],
+            data.get('notes'),
+            data.get('is_scheduled', 0)
+        )
+        return jsonify({'id': exam_id, 'message': 'Осмотр добавлен'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/animals/<int:animal_id>/vaccinations', methods=['GET'])
+@login_required
+def get_vaccinations(animal_id):
+    try:
+        vaccines = db.get_animal_vaccinations(animal_id)
+        result = []
+        for v in vaccines:
+            result.append({
+                'id': v[0], 'animal_id': v[1], 'vaccination_date': v[2],
+                'vaccine_name': v[3], 'veterinarian': v[4], 'next_due_date': v[5],
+                'is_scheduled': v[6] if len(v) > 6 else 0
+            })
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/vaccinations', methods=['POST'])
+@login_required
+@role_required('vet')
+def add_vaccination():
+    try:
+        data = request.json
+        vacc_id = db.add_vaccination(
+            data['animal_id'],
+            data.get('vaccination_date', datetime.now().strftime('%Y-%m-%d')),
+            data['vaccine_name'],
+            data['veterinarian'],
+            data.get('next_due_date'),
+            data.get('is_scheduled', 0)
+        )
+        return jsonify({'id': vacc_id, 'message': 'Прививка добавлена'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/examinations/<int:exam_id>/complete', methods=['PUT'])
+@login_required
+@role_required('vet')
+def complete_examination(exam_id):
+    try:
+        success = db.complete_examination(exam_id)
+        if success:
+            return jsonify({'message': 'Осмотр отмечен как проведенный'})
+        return jsonify({'error': 'Осмотр не найден'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/vaccinations/<int:vacc_id>/complete', methods=['PUT'])
+@login_required
+@role_required('vet')
+def complete_vaccination(vacc_id):
+    try:
+        success = db.complete_vaccination(vacc_id)
+        if success:
+            return jsonify({'message': 'Прививка отмечена как проведенная'})
+        return jsonify({'error': 'Прививка не найдена'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     print("🚀 VetZoo Control Server запускается...")
