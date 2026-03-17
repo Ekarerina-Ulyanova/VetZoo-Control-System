@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VetZoo Control</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">🐾 VetZoo Control System</span>
+            <div class="d-flex text-white align-items-center">
+                <span class="me-3 position-relative">
+                    <span id="userDisplay" class="me-3"></span>
+                    <span class="badge bg-danger position-absolute top-0 start-100 translate-middle" id="reminderBadge" style="display: none;">0</span>
+                </span>
+                <button class="btn btn-sm btn-outline-light me-2" onclick="showSchedule()" id="scheduleBtn">📅 Расписание</button>
+                <button class="btn btn-sm btn-outline-light me-2" onclick="goToReports()" id="reportsBtn">📊 Отчеты</button>
+                <button class="btn btn-sm btn-outline-light me-2" onclick="showChangeCredentialsModal()" id="changeCredentialsBtn">⚙️ Настройки</button>
+                <a href="/logout" class="btn btn-sm btn-light">Выйти</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAnimalModal" id="addAnimalBtn">
+                    ➕ Добавить животное
+                </button>
+                <button class="btn btn-success" onclick="loadAnimals()">
+                    🔄 Обновить список
+                </button>
+                <a href="/admin" class="btn btn-warning" id="adminPanelBtn" style="display: none;">👥 Управление персоналом</a>
+            </div>
+        </div>
+
+        <div class="row" id="animalsList"></div>
+    </div>
+
+    <!-- Модальное окно добавления животного -->
+    <div class="modal fade" id="addAnimalModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить новое животное</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addAnimalForm">
+                        <div class="mb-3">
+                            <label class="form-label">Кличка <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="animalName" required maxlength="100">
+                            <small class="text-muted">Максимум 100 символов</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Вид <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="animalSpecies" required maxlength="100">
+                            <small class="text-muted">Максимум 100 символов</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата прибытия</label>
+                            <input type="date" class="form-control" id="arrivalDate" max="">
+                            <small class="text-muted">Не может быть в будущем</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата рождения</label>
+                            <input type="date" class="form-control" id="birthDate" max="">
+                            <small class="text-muted">Не может быть позже сегодняшнего дня и даты прибытия</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Вольер</label>
+                            <input type="text" class="form-control" id="enclosure" maxlength="50">
+                            <small class="text-muted">Максимум 50 символов</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Пол</label>
+                            <select class="form-control" id="gender">
+                                <option value="">Не указан</option>
+                                <option value="М">Мужской</option>
+                                <option value="Ж">Женский</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Примечания</label>
+                            <textarea class="form-control" id="notes" rows="2" maxlength="1000"></textarea>
+                            <small class="text-muted">Максимум 1000 символов</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="addAnimal()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования животного -->
+    <div class="modal fade" id="editAnimalModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать животное</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editAnimalForm">
+                        <input type="hidden" id="editAnimalId">
+                        <div class="mb-3">
+                            <label class="form-label">Кличка <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editAnimalName" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Вид <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editAnimalSpecies" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата прибытия</label>
+                            <input type="date" class="form-control" id="editArrivalDate" max="">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата рождения</label>
+                            <input type="date" class="form-control" id="editBirthDate" max="">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Вольер</label>
+                            <input type="text" class="form-control" id="editEnclosure" maxlength="50">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Пол</label>
+                            <select class="form-control" id="editGender">
+                                <option value="">Не указан</option>
+                                <option value="М">Мужской</option>
+                                <option value="Ж">Женский</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Примечания</label>
+                            <textarea class="form-control" id="editNotes" rows="2" maxlength="1000"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="saveAnimalChanges()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно просмотра животного -->
+    <div class="modal fade" id="viewAnimalModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewAnimalTitle">Информация о животном</h5>
+                    <div>
+                        <button class="btn btn-sm btn-warning me-2" id="editAnimalBtn" style="display: none;" onclick="editAnimal(currentAnimalId)">✏️ Редактировать</button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs" id="animalTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#info">Информация</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#exams">Осмотры</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#vaccines">Прививки</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#diets">Рацион</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#upcoming">Предстоящие</a>
+                        </li>
+                    </ul>
+
+                    <div class="btn-group mb-3" role="group">
+                        <button class="btn btn-sm btn-outline-warning" id="scheduleExamBtn" style="display: none;" onclick="showScheduleExamForm()">📅 Запланировать осмотр</button>
+                        <button class="btn btn-sm btn-outline-warning" id="scheduleVaccineBtn" style="display: none;" onclick="showScheduleVaccineForm()">📅 Запланировать прививку</button>
+                    </div>
+                    
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="info">
+                            <div id="animalInfo"></div>
+                            <hr>
+                            <div id="statusUpdateSection" style="display: none;">
+                                <h6>Обновить статус здоровья:</h6>
+                                <select class="form-control mb-2" id="healthStatus">
+                                    <option value="здоров">Здоров</option>
+                                    <option value="болен">Болен</option>
+                                    <option value="на лечении">На лечении</option>
+                                    <option value="карантин">Карантин</option>
+                                    <option value="снят с учета">Снят с учета</option>
+                                </select>
+                                <button class="btn btn-sm btn-primary" onclick="updateStatus()">Обновить статус</button>
+                            </div>
+                        </div>
+                        <div class="tab-pane fade" id="exams">
+                            <button class="btn btn-sm btn-success mb-3" id="addExamBtn" style="display: none;" onclick="showAddExamForm()">➕ Добавить осмотр</button>
+                            <div id="examsList"></div>
+                        </div>
+                        <div class="tab-pane fade" id="vaccines">
+                            <button class="btn btn-sm btn-success mb-3" id="addVaccineBtn" style="display: none;" onclick="showAddVaccineForm()">➕ Добавить прививку</button>
+                            <div id="vaccinesList"></div>
+                        </div>
+                        <div class="tab-pane fade" id="diets">
+                            <button class="btn btn-sm btn-success mb-3" id="addDietBtn" style="display: none;" onclick="showAddDietForm()">➕ Добавить рацион</button>
+                            <div id="dietsList"></div>
+                        </div>
+                        <div class="tab-pane fade" id="upcoming">
+                            <div id="upcomingProceduresList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления осмотра -->
+    <div class="modal fade" id="addExamModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить осмотр</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addExamForm">
+                        <input type="hidden" id="examAnimalId">
+                        <div class="mb-3">
+                            <label class="form-label">Ветеринар <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="veterinarian" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Диагноз <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="diagnosis" required maxlength="500">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Лечение <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="treatment" rows="2" required maxlength="500"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата и время</label>
+                            <input type="datetime-local" class="form-control" id="examDate" max="">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="previewExamination()">Далее</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления прививки -->
+    <div class="modal fade" id="addVaccineModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить прививку</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addVaccineForm">
+                        <input type="hidden" id="vaccineAnimalId">
+                        <div class="mb-3">
+                            <label class="form-label">Название вакцины <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="vaccineName" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ветеринар <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="vaccineVeterinarian" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата прививки</label>
+                            <input type="date" class="form-control" id="vaccineDate" max="">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Следующая прививка</label>
+                            <input type="date" class="form-control" id="nextVaccineDate">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="previewVaccination()">Далее</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно добавления рациона -->
+    <div class="modal fade" id="addDietModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить рацион</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addDietForm">
+                        <input type="hidden" id="dietAnimalId">
+                        <div class="mb-3">
+                            <label class="form-label">Название рациона <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="dietName" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Тип корма <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="foodType" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Количество <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="quantity" required maxlength="50">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Расписание</label>
+                            <input type="text" class="form-control" id="schedule" maxlength="200">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата начала</label>
+                            <input type="date" class="form-control" id="dietStartDate" max="">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата окончания</label>
+                            <input type="date" class="form-control" id="dietEndDate">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="addDiet()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения осмотра -->
+    <div class="modal fade" id="confirmExamModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подтверждение осмотра</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Проверьте введённые данные:</p>
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Ветеринар:</th>
+                            <td id="previewExamVeterinarian"></td>
+                        </tr>
+                        <tr>
+                            <th>Диагноз:</th>
+                            <td id="previewExamDiagnosis"></td>
+                        </tr>
+                        <tr>
+                            <th>Лечение:</th>
+                            <td id="previewExamTreatment"></td>
+                        </tr>
+                        <tr>
+                            <th>Дата:</th>
+                            <td id="previewExamDate"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="cancelConfirm()">Назад</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAddExamination()">Подтвердить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения прививки -->
+    <div class="modal fade" id="confirmVaccineModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подтверждение прививки</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Проверьте введённые данные:</p>
+                    <table class="table table-sm">
+                        <tr>
+                            <th>Вакцина:</th>
+                            <td id="previewVaccineName"></td>
+                        </tr>
+                        <tr>
+                            <th>Ветеринар:</th>
+                            <td id="previewVaccineVeterinarian"></td>
+                        </tr>
+                        <tr>
+                            <th>Дата прививки:</th>
+                            <td id="previewVaccineDate"></td>
+                        </tr>
+                        <tr>
+                            <th>Следующая:</th>
+                            <td id="previewNextVaccineDate"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="cancelConfirm()">Назад</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmAddVaccination()">Подтвердить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно расписания -->
+    <div class="modal fade" id="scheduleModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📅 Расписание процедур</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <span class="badge bg-danger me-2">Просрочено</span>
+                        <span class="badge bg-warning me-2">Скоро (3 дня)</span>
+                        <span class="badge bg-success me-2">Сегодня</span>
+                    </div>
+                    <div id="scheduleList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно смены логина/пароля -->
+    <div class="modal fade" id="changeCredentialsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Изменение данных учётной записи</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="changeCredentialsForm">
+                        <div class="mb-3">
+                            <label class="form-label">Новый логин</label>
+                            <input type="text" class="form-control" id="newUsername" maxlength="50">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Новый пароль</label>
+                            <input type="password" class="form-control" id="newPassword" minlength="3" maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Подтверждение пароля</label>
+                            <input type="password" class="form-control" id="confirmNewPassword">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="changeCredentials()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно напоминаний -->
+    <div class="modal fade" id="remindersModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">🔔 Напоминания</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="remindersList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно планирования осмотра -->
+    <div class="modal fade" id="scheduleExamModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📅 Запланировать осмотр</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="scheduleExamForm">
+                        <div class="mb-3">
+                            <label class="form-label">Ветеринар <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="scheduleVeterinarian" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Предполагаемый диагноз <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="scheduleDiagnosis" required maxlength="500">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Планируемое лечение <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="scheduleTreatment" rows="2" required maxlength="500"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Дата и время</label>
+                            <input type="datetime-local" class="form-control" id="scheduleExamDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Примечания</label>
+                            <textarea class="form-control" id="scheduleNotes" rows="2" maxlength="1000"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-warning" onclick="addScheduledExamination()">Запланировать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно планирования прививки -->
+    <div class="modal fade" id="scheduleVaccineModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">📅 Запланировать прививку</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="scheduleVaccineForm">
+                        <div class="mb-3">
+                            <label class="form-label">Название вакцины <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="scheduleVaccineName" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Ветеринар <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="scheduleVaccineVeterinarian" required maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Плановая дата</label>
+                            <input type="date" class="form-control" id="scheduleVaccineDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Плановая следующая прививка</label>
+                            <input type="date" class="form-control" id="scheduleNextVaccineDate">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-warning" onclick="addScheduledVaccination()">Запланировать</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+    
+    <script>
+        // Установка максимальной даты для полей даты при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+
+            document.getElementById('arrivalDate')?.setAttribute('max', today);
+            document.getElementById('birthDate')?.setAttribute('max', today);
+            document.getElementById('examDate')?.setAttribute('max', new Date().toISOString().slice(0, 16));
+            document.getElementById('vaccineDate')?.setAttribute('max', today);
+            document.getElementById('dietStartDate')?.setAttribute('max', today);
+
+            document.getElementById('editArrivalDate')?.setAttribute('max', today);
+            document.getElementById('editBirthDate')?.setAttribute('max', today);
+        });
+    </script>
+</body>
+</html>
